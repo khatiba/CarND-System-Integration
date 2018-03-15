@@ -37,16 +37,55 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
+        self.base_waypoints = []
+        self.last_waypoints = []
+        self.last_pose = None
+        self.last_traffic = None
+        self.last_obstacle = None
 
         rospy.spin()
 
     def pose_cb(self, msg):
-        # TODO: Implement
-        pass
+        if not self.base_waypoints:
+            return
+
+        ref_x = msg.pose.position.x;
+        ref_y = msg.pose.position.y;
+        ref_yaw = msg.pose.orientation.z;
+
+        final_waypoints = []
+        for waypoint in self.base_waypoints.waypoints:
+            shift_x = waypoint.pose.pose.position.x - ref_x
+            shift_y = waypoint.pose.pose.position.y - ref_y
+
+            new_x = shift_x * math.cos(0 - ref_yaw) - shift_y * math.sin(0 - ref_yaw)
+            # new_y = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw)
+            if new_x > ref_x:
+                final_waypoints.append(waypoint)
+
+        final_waypoints = final_waypoints[:200]
+        for idx in range(len(final_waypoints)):
+            self.set_waypoint_velocity(final_waypoints, idx, 20)
+
+        lane = Lane()
+        lane.header.frame_id = '/world'
+        lane.header.stamp = rospy.Time(0)
+        lane.waypoints = final_waypoints
+
+        # rospy.logwarn('START -------------------')
+        # rospy.logwarn(len(final_waypoints))
+        # rospy.logwarn('-------------------')
+        # rospy.logwarn(ref_x)
+        # rospy.logwarn(ref_y)
+        # rospy.logwarn('-------------------')
+        # rospy.logwarn(final_waypoints[0].pose.pose.position.x)
+        # rospy.logwarn(final_waypoints[0].pose.pose.position.y)
+        # rospy.logwarn('END -------------------')
+
+        self.final_waypoints_pub.publish(lane)
 
     def waypoints_cb(self, waypoints):
-        # TODO: Implement
-        pass
+        self.base_waypoints = waypoints
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement

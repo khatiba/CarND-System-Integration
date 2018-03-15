@@ -32,6 +32,7 @@ that we have created in the `__init__` function.
 '''
 
 class DBWNode(object):
+    
     def __init__(self):
         rospy.init_node('dbw_node')
 
@@ -53,10 +54,21 @@ class DBWNode(object):
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd',
                                          BrakeCmd, queue_size=1)
 
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
+
+        self.is_dbw_enabled = True;
+
+        self.target_velocity = 0;
+        self.target_brake = 0;
+        self.target_steer = 0;
+
         # TODO: Create `Controller` object
         # self.controller = Controller(<Arguments you wish to provide>)
+        self.yaw_controller = YawController()
 
         # TODO: Subscribe to all the topics you need to
+
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.cmd_cb)
 
         self.loop()
 
@@ -70,9 +82,16 @@ class DBWNode(object):
             #                                                     <current linear velocity>,
             #                                                     <dbw status>,
             #                                                     <any other argument you need>)
-            # if <dbw is enabled>:
-            #   self.publish(throttle, brake, steer)
+            if self.is_dbw_enabled:
+                self.publish(0.5, 0, 0)
+
             rate.sleep()
+
+    def cmd_cb(self, msg):
+        pass
+
+    def dbw_enabled_cb(self, msg):
+        self.is_dbw_enabled = msg.data
 
     def publish(self, throttle, brake, steer):
         tcmd = ThrottleCmd()
