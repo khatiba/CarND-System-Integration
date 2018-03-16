@@ -1,5 +1,6 @@
 from yaw_controller import YawController
 from pid import PID
+import rospy
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -8,12 +9,14 @@ ONE_MPH = 0.44704
 class Controller(object):
     def __init__(self, wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle):
         self.yaw_controller = YawController(wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
-        self.vel_controller = PID(kp=1, ki=0.01, kd=10, mn=0, mx=1)
+        self.throttle_controller = PID(kp=0.05, ki=0.001, kd=8.5, mn=0, mx=1)
 
-        # TODO: Implement
-        pass
+    def control(self, target_linear_velocity, target_angular_velocity, current_velocity, is_dbw_enabled, sample_time):
+        error = target_linear_velocity - current_velocity
+        # rospy.logwarn('error: {}'.format(error))
 
-    def control(self, *args, **kwargs):
-        # TODO: Change the arg, kwarg list to suit your needs
+        throttle = self.throttle_controller.step(error, sample_time)
+        steer = self.yaw_controller.get_steering(target_linear_velocity, target_angular_velocity, current_velocity)
+
         # Return throttle, brake, steer
-        return 1., 0., 0.
+        return throttle, 0.0, steer

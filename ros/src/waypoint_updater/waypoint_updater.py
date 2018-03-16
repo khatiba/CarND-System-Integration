@@ -21,7 +21,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 10 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
@@ -37,42 +37,42 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-        self.base_waypoints = []
-        self.last_waypoints = []
-        self.last_pose = None
-        self.last_traffic = None
-        self.last_obstacle = None
+        self.waypoints = []
 
         rospy.spin()
 
     def pose_cb(self, msg):
-        if not self.base_waypoints:
+        if not self.waypoints:
             return
 
-        ref_x = msg.pose.position.x;
-        ref_y = msg.pose.position.y;
-        ref_yaw = msg.pose.orientation.z;
+        num_waypoints = len(self.waypoints.waypoints)
+
+        curr_pos = msg.pose.position
+
+        min_dist = float('inf')
+        closest_wpt_index = 0
+        for i in range(len(self.waypoints.waypoints)):
+            wpt_pos = self.waypoints.waypoints[i].pose.pose.position
+
+            dist = math.sqrt((wpt_pos.x - curr_pos.x)**2 + (wpt_pos.y - curr_pos.y)**2)
+            if dist < min_dist and wpt_pos.x > curr_pos.x:
+                min_dist = dist
+                closest_wpt_index = i
 
         final_waypoints = []
-        for waypoint in self.base_waypoints.waypoints:
-            shift_x = waypoint.pose.pose.position.x - ref_x
-            shift_y = waypoint.pose.pose.position.y - ref_y
+        for i in range(closest_wpt_index, closest_wpt_index + LOOKAHEAD_WPS):
+            final_waypoints.append(self.waypoints.waypoints[i % num_waypoints])
 
-            new_x = shift_x * math.cos(0 - ref_yaw) - shift_y * math.sin(0 - ref_yaw)
-            # new_y = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw)
-            if new_x > ref_x:
-                final_waypoints.append(waypoint)
-
-        final_waypoints = final_waypoints[:200]
-        for idx in range(len(final_waypoints)):
-            self.set_waypoint_velocity(final_waypoints, idx, 20)
+        # TODO: Temporary set constant speed
+        for i in range(len(final_waypoints)):
+            self.set_waypoint_velocity(final_waypoints, i, 1)
 
         lane = Lane()
-        lane.header.frame_id = '/world'
-        lane.header.stamp = rospy.Time(0)
+        lane.header.stamp = rospy.Time.now()
         lane.waypoints = final_waypoints
 
-        # rospy.logwarn('START -------------------')
+        rospy.logwarn('START -------------------')
+        rospy.logwarn('{} - {}'.format(curr_pos.x, final_waypoints[0].pose.pose.position.x))
         # rospy.logwarn(len(final_waypoints))
         # rospy.logwarn('-------------------')
         # rospy.logwarn(ref_x)
@@ -80,12 +80,12 @@ class WaypointUpdater(object):
         # rospy.logwarn('-------------------')
         # rospy.logwarn(final_waypoints[0].pose.pose.position.x)
         # rospy.logwarn(final_waypoints[0].pose.pose.position.y)
-        # rospy.logwarn('END -------------------')
+        rospy.logwarn('-------------------')
 
         self.final_waypoints_pub.publish(lane)
 
     def waypoints_cb(self, waypoints):
-        self.base_waypoints = waypoints
+        self.waypoints = waypoints
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement

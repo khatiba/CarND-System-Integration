@@ -58,16 +58,16 @@ class DBWNode(object):
 
         self.is_dbw_enabled = True;
 
-        self.target_velocity = 0;
-        self.target_brake = 0;
-        self.target_steer = 0;
+        self.current_velocity = 0
 
-        # TODO: Create `Controller` object
-        # self.controller = Controller(<Arguments you wish to provide>)
-        self.yaw_controller = YawController()
+        self.target_linear_velocity = 0
+        self.target_angular_velocity = 0
+        self.last_update_time = rospy.Time.now()
+
+        self.controller = Controller(wheel_base, steer_ratio, 3.0, max_lat_accel, max_steer_angle)
 
         # TODO: Subscribe to all the topics you need to
-
+        rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.cmd_cb)
 
         self.loop()
@@ -75,20 +75,33 @@ class DBWNode(object):
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
         while not rospy.is_shutdown():
-            # TODO: Get predicted throttle, brake, and steering using `twist_controller`
-            # You should only publish the control commands if dbw is enabled
-            # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
-            #                                                     <proposed angular velocity>,
-            #                                                     <current linear velocity>,
-            #                                                     <dbw status>,
-            #                                                     <any other argument you need>)
+            sample_time = max(rospy.Time.now().secs - self.last_update_time.secs, 1)
+
+
+            throttle, brake, steering = self.controller.control(self.target_linear_velocity,
+                                                                self.target_angular_velocity,
+                                                                self.current_velocity,
+                                                                self.is_dbw_enabled,
+                                                                sample_time)
+            # rospy.logwarn('START -----------')
+            # rospy.logwarn('sample time: {}'.format(sample_time))
+            # rospy.logwarn('throttle: {}, brake: {}, steer: {}'.format(throttle, brake, steering))
+            # rospy.logwarn('target vel: {}, target ang vel: {}, curr vel: {}'.format(self.target_linear_velocity, self.target_angular_velocity, self.current_velocity))
+            # rospy.logwarn('-----------')
+
             if self.is_dbw_enabled:
-                self.publish(0.5, 0, 0)
+                self.publish(throttle, brake, steering)
 
             rate.sleep()
 
     def cmd_cb(self, msg):
-        pass
+        self.target_linear_velocity = msg.twist.linear.x
+        self.target_angular_velocity = msg.twist.angular.z
+        self.last_update_time = rospy.Time.now()
+
+    def current_velocity_cb(self, msg):
+        self.current_velocity = msg.twist.linear.x
+        self.last_update_time = rospy.Time.now()
 
     def dbw_enabled_cb(self, msg):
         self.is_dbw_enabled = msg.data
