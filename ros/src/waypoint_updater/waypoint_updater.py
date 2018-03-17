@@ -21,7 +21,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 10 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
@@ -37,55 +37,54 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-        self.waypoints = []
+        self.base_waypoints = []
+
+        self.curr_time = rospy.Time.now().secs
+        self.target_vel = 40
 
         rospy.spin()
 
     def pose_cb(self, msg):
-        if not self.waypoints:
+        if not self.base_waypoints:
             return
 
-        num_waypoints = len(self.waypoints.waypoints)
+        num_waypoints = len(self.base_waypoints.waypoints)
 
         curr_pos = msg.pose.position
 
         min_dist = float('inf')
         closest_wpt_index = 0
-        for i in range(len(self.waypoints.waypoints)):
-            wpt_pos = self.waypoints.waypoints[i].pose.pose.position
+        for i in range(len(self.base_waypoints.waypoints)):
+            wpt_pos = self.base_waypoints.waypoints[i].pose.pose.position
 
-            dist = math.sqrt((wpt_pos.x - curr_pos.x)**2 + (wpt_pos.y - curr_pos.y)**2)
-            if dist < min_dist and wpt_pos.x > curr_pos.x:
+            dist = math.sqrt(
+                (wpt_pos.x - curr_pos.x)**2 +
+                (wpt_pos.y - curr_pos.y)**2 +
+                (wpt_pos.z - curr_pos.z)**2
+            )
+            if dist < min_dist:
                 min_dist = dist
                 closest_wpt_index = i
 
         final_waypoints = []
         for i in range(closest_wpt_index, closest_wpt_index + LOOKAHEAD_WPS):
-            final_waypoints.append(self.waypoints.waypoints[i % num_waypoints])
+            final_waypoints.append(self.base_waypoints.waypoints[i % num_waypoints])
 
-        # TODO: Temporary set constant speed
+        # TODO: Temporary set constant speed and stop after 20 seconds to test braking
+        if msg.header.stamp.secs > self.curr_time + 20:
+            self.target_vel = self.target_vel * 0.99
+
         for i in range(len(final_waypoints)):
-            self.set_waypoint_velocity(final_waypoints, i, 1)
+            self.set_waypoint_velocity(final_waypoints, i, self.target_vel)
 
         lane = Lane()
         lane.header.stamp = rospy.Time.now()
         lane.waypoints = final_waypoints
 
-        rospy.logwarn('START -------------------')
-        rospy.logwarn('{} - {}'.format(curr_pos.x, final_waypoints[0].pose.pose.position.x))
-        # rospy.logwarn(len(final_waypoints))
-        # rospy.logwarn('-------------------')
-        # rospy.logwarn(ref_x)
-        # rospy.logwarn(ref_y)
-        # rospy.logwarn('-------------------')
-        # rospy.logwarn(final_waypoints[0].pose.pose.position.x)
-        # rospy.logwarn(final_waypoints[0].pose.pose.position.y)
-        rospy.logwarn('-------------------')
-
         self.final_waypoints_pub.publish(lane)
 
     def waypoints_cb(self, waypoints):
-        self.waypoints = waypoints
+        self.base_waypoints = waypoints
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement

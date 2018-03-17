@@ -32,7 +32,7 @@ that we have created in the `__init__` function.
 '''
 
 class DBWNode(object):
-    
+
     def __init__(self):
         rospy.init_node('dbw_node')
 
@@ -47,24 +47,20 @@ class DBWNode(object):
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
 
-        self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
-                                         SteeringCmd, queue_size=1)
-        self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd',
-                                            ThrottleCmd, queue_size=1)
-        self.brake_pub = rospy.Publisher('/vehicle/brake_cmd',
-                                         BrakeCmd, queue_size=1)
+        self.steer_pub = rospy.Publisher('/vehicle/steering_cmd', SteeringCmd, queue_size=1)
+        self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd', ThrottleCmd, queue_size=1)
+        self.brake_pub = rospy.Publisher('/vehicle/brake_cmd', BrakeCmd, queue_size=1)
 
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
 
         self.is_dbw_enabled = True;
 
         self.current_velocity = 0
-
         self.target_linear_velocity = 0
         self.target_angular_velocity = 0
         self.last_update_time = rospy.Time.now()
 
-        self.controller = Controller(wheel_base, steer_ratio, 3.0, max_lat_accel, max_steer_angle)
+        self.controller = Controller(wheel_base, steer_ratio, 1.0, max_lat_accel, max_steer_angle, brake_deadband, accel_limit, decel_limit, vehicle_mass, wheel_radius, fuel_capacity)
 
         # TODO: Subscribe to all the topics you need to
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
@@ -77,17 +73,11 @@ class DBWNode(object):
         while not rospy.is_shutdown():
             sample_time = max(rospy.Time.now().secs - self.last_update_time.secs, 1)
 
-
             throttle, brake, steering = self.controller.control(self.target_linear_velocity,
                                                                 self.target_angular_velocity,
                                                                 self.current_velocity,
                                                                 self.is_dbw_enabled,
                                                                 sample_time)
-            # rospy.logwarn('START -----------')
-            # rospy.logwarn('sample time: {}'.format(sample_time))
-            # rospy.logwarn('throttle: {}, brake: {}, steer: {}'.format(throttle, brake, steering))
-            # rospy.logwarn('target vel: {}, target ang vel: {}, curr vel: {}'.format(self.target_linear_velocity, self.target_angular_velocity, self.current_velocity))
-            # rospy.logwarn('-----------')
 
             if self.is_dbw_enabled:
                 self.publish(throttle, brake, steering)
