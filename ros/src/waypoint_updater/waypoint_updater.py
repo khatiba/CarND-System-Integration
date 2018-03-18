@@ -37,16 +37,44 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
+        self.wp_received = False
+        self.all_wps = Lane()
+        self.wp_current_start = 0
+        self.wp_previous_start = 0
 
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
-        pass
+        rospy.loginfo("Pose received")
+        if (self.wp_received):
+            self.wp_current_start = self.check_position(msg.pose.position)
+            rospy.loginfo("Position checked to to close to point %s", self.wp_current_start)
+            if (self.wp_current_start != self.wp_previous_start):
+                wps_to_send = Lane()
+                wps_to_send.header = msg.header
+                wps_to_send.waypoints = self.all_wps.waypoints[self.wp_current_start:self.wp_current_start+LOOKAHEAD_WPS-1]
+                rospy.loginfo("Sending waypoints since current start is different")
+                self.final_waypoints_pub.publish(wps_to_send)
+                self.wp_previous_start = self.wp_current_start
+            
+        
+    def check_position(self,pos):
+        closest_point = 0
+        max_distance = 99999
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(len(self.all_wps.waypoints)):
+            current_distance = dl(pos,self.all_wps.waypoints[i].pose.pose.position)
+            if (current_distance < max_distance):
+                closest_point = i
+                max_distance = current_distance
+        return closest_point
 
     def waypoints_cb(self, waypoints):
         # TODO: Implement
-        pass
+        rospy.loginfo("Waypoints received")
+        self.wp_received = True
+        self.all_wps = waypoints 
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement

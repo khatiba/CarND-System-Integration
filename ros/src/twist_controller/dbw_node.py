@@ -7,7 +7,6 @@ from geometry_msgs.msg import TwistStamped
 import math
 
 from twist_controller import Controller
-
 '''
 You can build this node only after you have built (or partially built) the `waypoint_updater` node.
 
@@ -46,6 +45,9 @@ class DBWNode(object):
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
 
+        #extra info
+        min_speed = 10.0
+
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
         self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd',
@@ -53,12 +55,38 @@ class DBWNode(object):
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd',
                                          BrakeCmd, queue_size=1)
 
+        self.dbw_enabled = False
+
+        self.target_twist = TwistStamped()
+        self.current_twist = TwistStamped()
+
+
         # TODO: Create `Controller` object
-        # self.controller = Controller(<Arguments you wish to provide>)
+        self.controller = Controller(vehicle_mass,fuel_capacity,brake_deadband,decel_limit,accel_limit,wheel_radius,wheel_base,steer_ratio,max_lat_accel,max_steer_angle,min_speed)
 
         # TODO: Subscribe to all the topics you need to
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb)
+
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_en_cb)
+
+        rospy.Subscriber('/current_velocity', TwistStamped, self.vel_cb)
 
         self.loop()
+
+
+    def twist_cb(self,twist_msg):
+        rospy.loginfo("Twist command received")
+        self.target_twist = twist_msg
+
+    def vel_cb(self,vel_msg):
+        rospy.loginfo("Current vel received")
+        self.current_twist = vel_msg
+
+
+    def dbw_en_cb(self,dbw_msg):
+        self.dbw_enabled = dbw_msg
+        rospy.loginfo("dbw_enabled received with value %s", self.dbw_enabled)
+    
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
@@ -72,6 +100,11 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
+
+            throttle, brake, steer = self.controller.control(self.target_twist,self.current_twist)
+            rospy.loginfo("controller send out a value")
+            if self.dbw_enabled:
+                self.publish(throttle, brake, steer)
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
