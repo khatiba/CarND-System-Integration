@@ -3,7 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
-
+from std_msgs.msg import Int32
 import math
 
 '''
@@ -32,6 +32,7 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        rospy.Subscriber('traffic_waypoint', Int32, self.traffic_cb)
 
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
@@ -41,16 +42,18 @@ class WaypointUpdater(object):
         self.all_wps = Lane()
         self.wp_current_start = 0
         self.wp_previous_start = 0
+        self.original_speed = 0
+        self.stopping = False
 
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
-        rospy.loginfo("Pose received")
+        #rospy.loginfo("Pose received")
         if (self.wp_received):
             self.wp_current_start = self.check_position(msg.pose.position)
-            rospy.loginfo("Position checked to to close to point %s", self.wp_current_start)
-            if (self.wp_current_start != self.wp_previous_start):
+            #rospy.loginfo("Position checked to to close to point %s", self.wp_current_start)
+            if ((self.wp_current_start != self.wp_previous_start)):
                 wps_to_send = Lane()
                 wps_to_send.header = msg.header
                 wps_to_send.waypoints = self.all_wps.waypoints[self.wp_current_start:self.wp_current_start+LOOKAHEAD_WPS-1]
@@ -78,7 +81,26 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        rospy.loginfo("Current waypoint is %s", self.wp_current_start)
+        if (msg.data >=0):
+            rospy.loginfo("Traffic waypoints received %s", msg.data)
+            rospy.loginfo("Target velocity is %s", self.all_wps.waypoints[msg.data].twist.twist.linear.x)
+        if ((msg.data >= 0)and(not self.stopping)):
+            rospy.loginfo("Red light ahead, set velocity to stop")
+            self.original_speed = self.get_waypoint_velocity(self.all_wps.waypoints[msg.data])
+            braking_in_action = msg.data - self.wp_current_start+1
+            for i in range(braking_in_action):
+                rospy.loginfo("i is %s", i)
+                self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start,self.original_speed*(braking_in_action-i-1)/(braking_in_action-1))
+            for i in range(500):
+                self.set_waypoint_velocity(self.all_wps.waypoints,i+braking_in_action+self.wp_current_start,0.)
+            self.stopping = True
+        else:
+            if (self.wp_current_start > msg.data):
+                rospy.loginfo("Green light now, resume velocity")
+                self.stopping = False
+            #self.set_waypoint_velocity(self.all_wps.waypoints,msg.data,self.original_speed)
+
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -89,6 +111,7 @@ class WaypointUpdater(object):
 
     def set_waypoint_velocity(self, waypoints, waypoint, velocity):
         waypoints[waypoint].twist.twist.linear.x = velocity
+        rospy.loginfo("setting waypoint %s to %s", waypoint, velocity)
 
     def distance(self, waypoints, wp1, wp2):
         dist = 0

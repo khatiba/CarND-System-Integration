@@ -11,9 +11,9 @@ class Controller(object):
     def __init__(self, vehicle_mass,fuel_capacity,brake_deadband,decel_limit,accel_limit,wheel_radius,wheel_base,steer_ratio,max_lat_accel,max_steer_angle, min_speed):
         # TODO: Implement
         self.yaw_controller = YawController(wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
-        kp = 0.12
-        ki = 0.006
-        kd = 3.0
+        kp = 6.1
+        ki = 0.0
+        kd = 0.0
         self.pid = PID(kp, ki, kd)
 
     def control(self,target_twist,current_twist):
@@ -45,7 +45,8 @@ class Controller(object):
         #rospy.loginfo("calculated steer_value is %s", steer_value)
 
         cte = linear_vel - current_vel
-        a = self.pid.step(cte,0.02)
+        #a = self.pid.step(cte,2)
+        a = cte*5
 
         rospy.loginfo("calculated acceleration is %s", a)
 
@@ -54,6 +55,6 @@ class Controller(object):
             brake = 0.
         else:
             throttle = 0.
-            brake = -a
+            brake = -a+40
 
         return throttle, brake, steer_value
