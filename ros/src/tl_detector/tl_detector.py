@@ -153,11 +153,21 @@ class TLDetector(object):
         #TODO find the closest visible traffic light (if one exists)
 
         for i_light in range(len(self.lights)):
+            current_stop_line = Pose()
+            current_stop_line.position.x = stop_line_positions[i_light][0]
+            current_stop_line.position.y = stop_line_positions[i_light][1]
+            current_stop_line_position = self.get_closest_waypoint(current_stop_line)
             current_light_position = self.get_closest_waypoint(self.lights[i_light].pose.pose)
-            if ((current_light_position > car_position+30) and (current_light_position < car_position + 120)):
-                light = self.lights[i_light]
-                light_wp = current_light_position
-                rospy.loginfo("current light position at waypoint %s", current_light_position)
+            if ((current_light_position > car_position ) and (current_stop_line_position > car_position) and (current_stop_line_position < car_position + 200)):
+                distance_stop_line = self.distance(self.waypoints.waypoints,car_position,current_stop_line_position)
+                if (distance_stop_line < 50):
+                    light = self.lights[i_light]
+                    light_wp = current_stop_line_position
+                    rospy.loginfo("current light position at waypoint %s", current_light_position)
+                    rospy.loginfo("current stop line position at waypoint %s", current_stop_line_position)
+                    rospy.loginfo("distance to stop line is %s", distance_stop_line)
+
+
 
         
         if light:
@@ -168,6 +178,16 @@ class TLDetector(object):
         #    return light_wp, state
         #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
+
+
+    def distance(self, waypoints, wp1, wp2):
+        dist = 0
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(wp1, wp2+1):
+            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
+            wp1 = i
+        return dist
+
 
 if __name__ == '__main__':
     try:
