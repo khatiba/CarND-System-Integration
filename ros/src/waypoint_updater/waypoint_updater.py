@@ -104,13 +104,13 @@ class WaypointUpdater(object):
             rospy.loginfo("Red light ahead, set velocity to stop")
             self.original_speed = self.current_twist.twist.linear.x
             rospy.loginfo("current speed is %s", self.original_speed)
-            braking_in_action = msg.data - self.wp_current_start+1
+            braking_in_action = (msg.data - self.wp_current_start+1)//2
             rospy.loginfo("waypoints before stopping is %s", braking_in_action)
             for i in range(braking_in_action):
                 rospy.loginfo("i is %s", i)
-                #self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start,self.original_speed*(braking_in_action-i-1)/(braking_in_action-1))
-                self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start,0.)
-            for i in range(10):
+                self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start,self.original_speed*(braking_in_action-i-1)/(braking_in_action-1))
+                #self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start,0.)
+            for i in range(10+braking_in_action):
                 self.set_waypoint_velocity(self.all_wps.waypoints,i+braking_in_action+self.wp_current_start,0.)
             self.stopping = True
         else:
