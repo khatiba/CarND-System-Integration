@@ -69,7 +69,7 @@ class DBWNode(object):
         self.loop()
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(30) # 50Hz
         while not rospy.is_shutdown():
             sample_time = max(rospy.Time.now().secs - self.last_update_time.secs, 1)
 

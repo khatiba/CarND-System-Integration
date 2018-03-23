@@ -17,8 +17,8 @@ class Controller(object):
         self.fuel_capacity = fuel_capacity
 
         self.yaw_controller = YawController(wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
-        self.accel_controller = PID(kp=10, ki=0.05, kd=0.1, mn=decel_limit, mx=accel_limit)
-        self.throttle_controller = PID(kp=1, ki=0.05, kd=0.5, mn=0, mx=1)
+        self.accel_controller = PID(kp=1, ki=0.01, kd=0.1, mn=decel_limit, mx=accel_limit)
+        self.throttle_controller = PID(kp=1, ki=0.01, kd=0.05, mn=0, mx=1)
 
     def control(self, target_linear_velocity, target_angular_velocity, current_velocity, is_dbw_enabled, sample_time):
         vel_error = target_linear_velocity - current_velocity

@@ -3,6 +3,8 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
+from geometry_msgs.msg import TwistStamped
 
 import math
 
@@ -21,7 +23,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 150 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
@@ -30,9 +32,10 @@ class WaypointUpdater(object):
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -40,7 +43,14 @@ class WaypointUpdater(object):
         self.base_waypoints = []
 
         self.curr_time = rospy.Time.now().secs
-        self.target_vel = 40
+        self.target_speed = 20
+
+        self.current_velocity = None
+        self.light_wp = -1
+
+        self.is_stopping = False
+        self.stop_timeout = 0
+        self.light_wp_offset = 4
 
         rospy.spin()
 
@@ -54,7 +64,7 @@ class WaypointUpdater(object):
 
         min_dist = float('inf')
         closest_wpt_index = 0
-        for i in range(len(self.base_waypoints.waypoints)):
+        for i in range(num_waypoints):
             wpt_pos = self.base_waypoints.waypoints[i].pose.pose.position
 
             dist = math.sqrt(
@@ -66,16 +76,40 @@ class WaypointUpdater(object):
                 min_dist = dist
                 closest_wpt_index = i
 
+        target_speed = 20
+
         final_waypoints = []
         for i in range(closest_wpt_index, closest_wpt_index + LOOKAHEAD_WPS):
             final_waypoints.append(self.base_waypoints.waypoints[i % num_waypoints])
 
-        # TODO: Temporary set constant speed and stop after 20 seconds to test braking
-        if msg.header.stamp.secs > self.curr_time + 20:
-            self.target_vel = self.target_vel * 0.99
+        curr_wp_speed = self.get_waypoint_velocity(self.base_waypoints.waypoints[closest_wpt_index])
 
-        for i in range(len(final_waypoints)):
-            self.set_waypoint_velocity(final_waypoints, i, self.target_vel)
+        dist_to_light = self.distance(self.base_waypoints.waypoints, closest_wpt_index, self.light_wp) - self.light_wp_offset
+
+        if self.light_wp > 0 and dist_to_light < 40:
+            self.is_stopping = True
+
+            # rospy.logwarn('Braking dist to light: {}'.format(dist_to_light))
+            # linearly decrease speed, eg: new_speed = - (curr_wp_speed / dist_to_light) * i + current_wp_speed
+            for i in range(len(final_waypoints)):
+                if dist_to_light > 0:
+                    new_speed = -1 * i * (curr_wp_speed / dist_to_light) + curr_wp_speed
+                    self.set_waypoint_velocity(final_waypoints, i, new_speed)
+                else:
+                    self.set_waypoint_velocity(final_waypoints, i, -1)
+        else:
+            self.is_stopping = False
+
+        if self.is_stopping:
+            self.stop_timeout = self.stop_timeout + 1
+            if self.stop_timeout > 500:
+                rospy.logwarn('Starting again')
+                self.is_stopping = False
+                self.stop_timeout = 0
+
+        if not self.is_stopping:
+            for i in range(len(final_waypoints)):
+                self.set_waypoint_velocity(final_waypoints, i, target_speed)
 
         lane = Lane()
         lane.header.stamp = rospy.Time.now()
@@ -88,11 +122,14 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        self.light_wp = msg.data
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
+
+    def current_velocity_cb(self, msg):
+        self.current_velocity = msg
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
