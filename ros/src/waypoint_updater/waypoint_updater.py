@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 
 import math
 
@@ -30,23 +31,71 @@ class WaypointUpdater(object):
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
+        rospy.Subscriber('/current_velocity', TwistStamped, self.current_twist_cb)
+        rospy.Subscriber('traffic_waypoint', Int32, self.traffic_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        # TODO: Add other member variables you need below
+        self.wp_received = False
+        self.original_wps = Lane()
+        self.all_wps = Lane()
+        self.wp_current_start = 0
+        self.wp_previous_start = 0
+        self.original_speed = 0
+        self.is_stopping = False
+        self.is_resuming = False
+        self.resuming_point = 0
+        self.current_twist = TwistStamped()
 
         rospy.spin()
 
     def pose_cb(self, msg):
-        # TODO: Implement
-        pass
+        if not self.wp_received:
+            return
+
+        self.wp_current_start = self.check_position(msg.pose.position)
+        #rospy.loginfo("Position checked to to close to point %s", self.wp_current_start)
+        if (self.wp_current_start != self.wp_previous_start) or self.is_resuming:
+            num_waypoints = len(self.all_wps.waypoints)
+
+            wps_to_send = Lane()
+            wps_to_send.header = msg.header
+
+            final_waypoints = []
+            for i in range(self.wp_current_start, self.wp_current_start + LOOKAHEAD_WPS):
+                final_waypoints.append(self.all_wps.waypoints[i % num_waypoints])
+
+            # TODO: Temporarily set speed to optimize controller gains
+            for i in range(len(final_waypoints)):
+                self.set_waypoint_velocity(final_waypoints, i, 20.0)
+
+            wps_to_send.waypoints = final_waypoints
+
+            rospy.loginfo("Sending waypoints since current start is different")
+            self.final_waypoints_pub.publish(wps_to_send)
+            self.wp_previous_start = self.wp_current_start
+
+    def check_position(self, pos):
+        closest_point = 0
+        max_distance = float('inf')
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(len(self.all_wps.waypoints)):
+            current_distance = dl(pos, self.all_wps.waypoints[i].pose.pose.position)
+            if current_distance < max_distance:
+                closest_point = i
+                max_distance = current_distance
+        return closest_point
 
     def waypoints_cb(self, waypoints):
-        # TODO: Implement
-        pass
+        rospy.loginfo("Waypoints received")
+        if (not self.wp_received):
+            self.original_wps = waypoints
+        self.wp_received = True
+        self.all_wps = waypoints
+
+    def current_twist_cb(self, msg):
+        rospy.loginfo("Current twist received")
+        self.current_twist = msg
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
