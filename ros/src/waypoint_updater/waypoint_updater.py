@@ -42,8 +42,8 @@ class WaypointUpdater(object):
         self.wp_current_start = 0
         self.wp_previous_start = 0
         self.original_speed = 0
-        self.is_stopping = False
-        self.is_resuming = False
+        self.stopping = False
+        self.resuming = False
         self.resuming_point = 0
         self.current_twist = TwistStamped()
 
@@ -55,7 +55,7 @@ class WaypointUpdater(object):
 
         self.wp_current_start = self.check_position(msg.pose.position)
         #rospy.loginfo("Position checked to to close to point %s", self.wp_current_start)
-        if (self.wp_current_start != self.wp_previous_start) or self.is_resuming:
+        if (self.wp_current_start != self.wp_previous_start) or self.resuming:
             num_waypoints = len(self.all_wps.waypoints)
 
             wps_to_send = Lane()
@@ -66,8 +66,8 @@ class WaypointUpdater(object):
                 final_waypoints.append(self.all_wps.waypoints[i % num_waypoints])
 
             # TODO: Temporarily set speed to optimize controller gains
-            for i in range(len(final_waypoints)):
-                self.set_waypoint_velocity(final_waypoints, i, 20.0)
+            # for i in range(len(final_waypoints)):
+            #     self.set_waypoint_velocity(final_waypoints, i, 18.5)
 
             wps_to_send.waypoints = final_waypoints
 
