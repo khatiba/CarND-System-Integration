@@ -4,6 +4,7 @@ build
 devel
 *.swp
 *.swo
+*.pb
 tags
 
 profile.tmp

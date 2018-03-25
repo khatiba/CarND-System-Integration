@@ -22,7 +22,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 75 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
@@ -47,6 +47,8 @@ class WaypointUpdater(object):
         self.resuming_point = 0
         self.current_twist = TwistStamped()
 
+        self.last_closest_waypoint = 0
+
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -65,10 +67,6 @@ class WaypointUpdater(object):
             for i in range(self.wp_current_start, self.wp_current_start + LOOKAHEAD_WPS):
                 final_waypoints.append(self.all_wps.waypoints[i % num_waypoints])
 
-            # TODO: Temporarily set speed to optimize controller gains
-            # for i in range(len(final_waypoints)):
-            #     self.set_waypoint_velocity(final_waypoints, i, 18.5)
-
             wps_to_send.waypoints = final_waypoints
 
             rospy.loginfo("Sending waypoints since current start is different")
@@ -76,14 +74,19 @@ class WaypointUpdater(object):
             self.wp_previous_start = self.wp_current_start
 
     def check_position(self, pos):
+        num_waypoints = len(self.all_wps.waypoints)
+
         closest_point = 0
         max_distance = float('inf')
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-        for i in range(len(self.all_wps.waypoints)):
-            current_distance = dl(pos, self.all_wps.waypoints[i].pose.pose.position)
+
+        for i in range(self.last_closest_waypoint, self.last_closest_waypoint + LOOKAHEAD_WPS):# len(self.all_wps.waypoints)):
+            current_distance = dl(pos, self.all_wps.waypoints[i % num_waypoints].pose.pose.position)
             if current_distance < max_distance:
                 closest_point = i
                 max_distance = current_distance
+
+        self.last_closest_waypoint = closest_point
         return closest_point
 
     def waypoints_cb(self, waypoints):

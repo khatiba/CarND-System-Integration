@@ -35,7 +35,7 @@ class DBWNode(object):
     def __init__(self):
         rospy.init_node('dbw_node')
 
-        steering_min_speed = 1.0
+        steering_min_speed = 2.5
         vehicle_mass = rospy.get_param('~vehicle_mass', 1736.35)
         fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
         brake_deadband = rospy.get_param('~brake_deadband', .1)
