@@ -29,7 +29,7 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        self.speed_limit = rospy.get_param('/waypoint_loader/velocity', 15) * 0.45 # MPH to m/s
+        self.speed_limit = rospy.get_param('/waypoint_loader/velocity', 15) * 5/18  # kph -> m/s
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -85,7 +85,7 @@ class WaypointUpdater(object):
         for i in range(self.last_closest_waypoint, self.last_closest_waypoint + LOOKAHEAD_WPS):# len(self.all_wps.waypoints)):
             current_distance = dl(pos, self.all_wps.waypoints[i % num_waypoints].pose.pose.position)
             if current_distance < max_distance:
-                closest_point = i
+                closest_point = i % num_waypoints
                 max_distance = current_distance
 
         self.last_closest_waypoint = closest_point
