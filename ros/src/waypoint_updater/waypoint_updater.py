@@ -29,10 +29,11 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
+        self.speed_limit = rospy.get_param('/waypoint_loader/velocity', 15) * 0.45 # MPH to m/s
+
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         self.light_wp_offset = 4.0
-
         self.wp_received = False
         self.original_wps = Lane()
         self.all_wps = Lane()
@@ -43,7 +44,6 @@ class WaypointUpdater(object):
         self.resuming = False
         self.resuming_point = 0
         self.current_twist = TwistStamped()
-
         self.last_closest_waypoint = 0
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -95,6 +95,7 @@ class WaypointUpdater(object):
         rospy.loginfo("Waypoints received")
         if (not self.wp_received):
             self.original_wps = waypoints
+
         self.wp_received = True
         self.all_wps = waypoints
 
@@ -114,6 +115,7 @@ class WaypointUpdater(object):
             rospy.logwarn('Braking distance to light: {}'.format(dist_to_light))
 
         # at the first moment detecting a red light close by
+        extra_brake_wps = 50
         if light_wp >= 0 and not self.stopping:
             # rospy.loginfo("Traffic waypoints received %s", msg.data)
             # rospy.loginfo("Target velocity is %s", self.all_wps.waypoints[msg.data].twist.twist.linear.x)
@@ -128,33 +130,35 @@ class WaypointUpdater(object):
                 else:
                     self.set_waypoint_velocity(self.all_wps.waypoints, i + self.wp_current_start, -1.0)
 
-            for j in range(i, i + 30):
+            for j in range(i, i + extra_brake_wps):
                 self.set_waypoint_velocity(self.all_wps.waypoints, j + self.wp_current_start, -1.0)
 
             self.stopping = True
 
+        num_resume_wps = 30
         if light_wp < 0:
             if (not self.resuming) and (self.stopping):
-                rospy.loginfo("Green light now, resume velocity")
+                rospy.logwarn("Green light now, resume velocity")
+                rospy.logwarn("Target velocity is %s", self.speed_limit)
                 self.stopping = False
                 self.resuming = True
-                self.resuming_point = self.wp_current_start+50
-                resuming_in_action = 50
-                #target_speed = self.original_wps.waypoints[self.wp_current_start+20].twist.twist.linear.x
-                target_speed = 100/9
-                rospy.loginfo("Target velocity is %s", target_speed)
-                own_speed = self.current_twist.twist.linear.x
-                rospy.loginfo("Own velocity is %s", own_speed)
+                self.resuming_point = self.wp_current_start + num_resume_wps
+
+                min_resume_speed = 3.0
+                dist_to_resume = self.distance(self.all_wps.waypoints, self.wp_current_start, self.resuming_point)
+                for i in range(num_resume_wps):
+                    delta = self.distance(self.all_wps.waypoints, self.wp_current_start, self.wp_current_start + i)
+                    new_speed = ((self.speed_limit - min_resume_speed)/dist_to_resume) * delta + min_resume_speed
+                    self.set_waypoint_velocity(self.all_wps.waypoints, i + self.wp_current_start, new_speed)
+
                 self.all_wps = self.original_wps
-                for i in range(resuming_in_action):
-                    rospy.loginfo("i is %s", i)
-                    #self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start,own_speed+(target_speed-own_speed)*(i+1)/(resuming_in_action))
-                    self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start,target_speed)
-                for i in range(110):
-                    self.set_waypoint_velocity(self.all_wps.waypoints,i+self.wp_current_start+resuming_in_action,target_speed)
+                num_waypoints = len(self.all_wps.waypoints)
+                for j in range(i, num_waypoints - num_resume_wps - 1):
+                    self.set_waypoint_velocity(self.all_wps.waypoints, (j+self.wp_current_start) % num_waypoints, self.speed_limit)
+
             if (self.wp_current_start > self.resuming_point)and(self.resuming):
                 self.resuming = False
-                rospy.loginfo("Resuming done")
+                rospy.logwarn("Resuming done")
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later

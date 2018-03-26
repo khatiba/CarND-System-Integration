@@ -51,34 +51,33 @@ class DBWNode(object):
         self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd', ThrottleCmd, queue_size=1)
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd', BrakeCmd, queue_size=1)
 
-        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
-        rospy.Subscriber('/current_velocity', TwistStamped, self.current_twist_cb)
-        rospy.Subscriber('/twist_cmd', TwistStamped, self.target_twist_cb)
-
-        self.controller = Controller(wheel_base, steer_ratio, steering_min_speed, max_lat_accel,
-            max_steer_angle, brake_deadband, accel_limit, decel_limit, vehicle_mass, wheel_radius, fuel_capacity)
-
+        self.sample_freq = 50
         self.is_dbw_enabled = False
         self.target_twist = None
         self.current_twist = None
 
+        self.controller = Controller(wheel_base, steer_ratio, steering_min_speed, max_lat_accel,
+            max_steer_angle, brake_deadband, accel_limit, decel_limit, vehicle_mass, wheel_radius,
+            fuel_capacity, 1.0/self.sample_freq)
+
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.current_twist_cb)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.target_twist_cb)
+
         self.loop()
 
     def loop(self):
-        loop_freq = 50
-        rate = rospy.Rate(loop_freq) # 50Hz
+        rate = rospy.Rate(self.sample_freq) # 50Hz
 
         while not rospy.is_shutdown():
             if not self.target_twist or not self.current_twist:
                 continue
 
             if self.is_dbw_enabled:
-                sample_time = 1.0/loop_freq
                 throttle, brake, steering = self.controller.control(
                     self.target_twist.linear.x,
                     self.target_twist.angular.z,
-                    self.current_twist.linear.x,
-                    sample_time
+                    self.current_twist.linear.x
                 )
                 self.publish(throttle, brake, steering)
 
