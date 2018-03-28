@@ -46,7 +46,7 @@ class TLDetector(object):
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier()
+        self.light_classifier = TLClassifier("cv_method")
         self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
@@ -181,6 +181,7 @@ class TLDetector(object):
             rospy.loginfo("pos computed")
 
         if self.pos_computed:
+            car_position = self.previous_wp
             if(self.pose):
                 if (self.previous_wp == -1):
                     car_position = self.get_closest_waypoint(self.pose.pose)
@@ -207,8 +208,8 @@ class TLDetector(object):
                         #rospy.loginfo("distance to stop line is %s", distance_to_light)
 
             if light:
-                #state = self.get_light_state(light)
-                state = light.state
+                state = self.get_light_state(light)
+                #state = light.state
                 return light_wp, state
             
         return -1, TrafficLight.UNKNOWN

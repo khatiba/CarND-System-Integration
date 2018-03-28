@@ -130,7 +130,7 @@ class WaypointUpdater(object):
                 else:
                     self.set_waypoint_velocity(self.all_wps.waypoints, i + self.wp_current_start, -1.0)
 
-            for j in range(i, i + extra_brake_wps):
+            for j in range(wps_to_light-1, wps_to_light-1 + extra_brake_wps):
                 self.set_waypoint_velocity(self.all_wps.waypoints, j + self.wp_current_start, -1.0)
 
             self.stopping = True
