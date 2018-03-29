@@ -12,7 +12,7 @@ import cv2
 import yaml
 import math
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 5
 
 class TLDetector(object):
     def __init__(self):
@@ -97,8 +97,13 @@ class TLDetector(object):
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
+            if state == TrafficLight.RED:
+                rospy.loginfo("RED or YELLOW")
+            else:
+                rospy.loginfo("GREEN or UNKNOWN")
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            #rospy.loginfo("RED published at last_wp %s",Int32(self.last_wp))
         self.state_count += 1
 
     def get_closest_waypoint(self, pose):
