@@ -16,6 +16,7 @@ class CVMethod():
     self.image_no = self.image_no+1
     #rospy.loginfo("image number is %s", self.image_no)
     #cv2.imwrite("imgs/img_original_"+str(self.image_no)+".png", image)
+
     # MedianBlur the image to handle noise
     bgr_image = cv2.medianBlur(image,3)
     #bgr_image = image
@@ -27,20 +28,21 @@ class CVMethod():
 
     # Threshold the HSV image, keep only the red pixels
     # deliberately consider YELLOW as RED to make sure driver slow down in YELLOW
-    # therefore increase max of lower red Hue range to 33, supposed to be 10
-    lower_red_hue_range = cv2.inRange(hsv_image,np.array([10, 40, 250]), np.array([31, 150, 255]))
-    upper_red_hue_range = cv2.inRange(hsv_image,np.array([160, 40, 200]), np.array([180, 255, 255]))
-    other_red_hue_range = cv2.inRange(hsv_image,np.array([0, 160, 200]), np.array([9, 255, 255]))
-    yellow_hue_range = cv2.inRange(hsv_image,np.array([29, 200, 242]), np.array([31, 255, 255]))
+    # Also the color of the traffic light in simulator is very different to the color in rosbag
+    # So extra range is created to make sure that both scenarios are considered
+    carla_red_yellow_range = cv2.inRange(hsv_image,np.array([10, 40, 250]), np.array([31, 150, 255]))
+    simulator_upper_red_range = cv2.inRange(hsv_image,np.array([160, 40, 200]), np.array([180, 255, 255]))
+    simulator_lower_red_range = cv2.inRange(hsv_image,np.array([0, 160, 200]), np.array([9, 255, 255]))
+    simulator_yellow_range = cv2.inRange(hsv_image,np.array([29, 200, 242]), np.array([31, 255, 255]))
     
-    #cv2.imwrite("imgs/img_lower_red_"+str(self.image_no)+".png", lower_red_hue_range)
-    #cv2.imwrite("imgs/img_upper_red_"+str(self.image_no)+".png", upper_red_hue_range)
+    #cv2.imwrite("imgs/img_lower_red_"+str(self.image_no)+".png", carla_red_yellow_range)
+    #cv2.imwrite("imgs/img_upper_red_"+str(self.image_no)+".png", simulator_upper_red_range)
 
 
     # Combine the above two image
-    red_hue_image = cv2.addWeighted(lower_red_hue_range, 1.0, upper_red_hue_range, 1.0, 0.0)
-    red_hue_image = cv2.addWeighted(red_hue_image, 1.0, other_red_hue_range, 1.0, 0.0)
-    red_hue_image = cv2.addWeighted(red_hue_image, 1.0, yellow_hue_range, 1.0, 0.0) # for simulator
+    red_hue_image = cv2.addWeighted(carla_red_yellow_range, 1.0, simulator_upper_red_range, 1.0, 0.0)
+    red_hue_image = cv2.addWeighted(red_hue_image, 1.0, simulator_lower_red_range, 1.0, 0.0)
+    red_hue_image = cv2.addWeighted(red_hue_image, 1.0, simulator_yellow_range, 1.0, 0.0) # for simulator
 
 
     # Slightly blur the result to avoid false positives
@@ -52,14 +54,11 @@ class CVMethod():
     circles = cv2.HoughCircles(blurred_image,cv2.HOUGH_GRADIENT,1,100,
                             param1=50,param2=15,minRadius=4,maxRadius=40)
 
-    #// Loop over all detected circles and outline them on the original image
- 	#if(circles.size() == 0) std::exit(-1);
- 	#for(size_t current_circle = 0; current_circle < circles.size(); ++current_circle) {
- #		cv::Point center(std::round(circles[current_circle][0]), std::round(circles[current_circle][1]));
-# 		int radius = std::round(circles[current_circle][2]);
- #
- #		cv::circle(orig_image, center, radius, cv::Scalar(0, 255, 0), 5);
-# 	}
+    # Loop over all detected circles and outline them on the original image (commented out)
+    # Hough circles detects only the circular line
+    # we want to detect filled circle
+    # Therefore we need to calculate a filled ratio
+    # If it is above the ratio, consider as a proper filled circle
 
     blurred_image_bgr = cv2.cvtColor(blurred_image,cv2.COLOR_GRAY2BGR)
 

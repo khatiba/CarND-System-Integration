@@ -97,7 +97,10 @@ class TLDetector(object):
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
-            #rospy.loginfo("RED published at lightwp %s",Int32(light_wp))
+            if state == TrafficLight.RED:
+                rospy.loginfo("RED or YELLOW")
+            else:
+                rospy.loginfo("GREEN or UNKNOWN")
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
             #rospy.loginfo("RED published at last_wp %s",Int32(self.last_wp))
