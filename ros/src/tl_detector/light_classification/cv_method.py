@@ -87,11 +87,11 @@ class CVMethod():
             #rospy.loginfo("ratio is %s", ratio)
             if ratio > 0.35:
                 prediction = TrafficLight.RED
-                img_with_circle = cv2.circle(img_with_circle,(center_x,center_y),radius,(0,255,0),2)
-                img_with_circle = cv2.putText(img_with_circle,str(ratio),(center_x,center_y),cv2.FONT_HERSHEY_SIMPLEX,2,(0,0,255),2,cv2.LINE_AA)
-            else:
-                img_with_circle = cv2.circle(img_with_circle,(center_x,center_y),radius,(0,255,0),2)
-                img_with_circle = cv2.putText(img_with_circle,str(ratio),(center_x,center_y),cv2.FONT_HERSHEY_SIMPLEX,2,(255,0,0),2,cv2.LINE_AA)
+                #img_with_circle = cv2.circle(img_with_circle,(center_x,center_y),radius,(0,255,0),2)
+                #img_with_circle = cv2.putText(img_with_circle,str(ratio),(center_x,center_y),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255),1,cv2.LINE_AA)
+            #else:
+                #img_with_circle = cv2.circle(img_with_circle,(center_x,center_y),radius,(255,0,0),2)
+                #img_with_circle = cv2.putText(img_with_circle,str(ratio),(center_x,center_y),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,0),1,cv2.LINE_AA)
        
         
     #cv2.imwrite("imgs/img_final_"+str(self.image_no)+".png", img_with_circle)
