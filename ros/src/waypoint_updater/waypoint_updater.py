@@ -33,22 +33,18 @@ class WaypointUpdater(object):
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        self.light_wp_offset = 4.0
+        self.light_wp_offset = 4
         self.wp_received = False
-        self.original_wps = Lane()
         self.all_wps = Lane()
         self.wp_current_start = 0
         self.wp_previous_start = 0
-        self.original_speed = 0
         self.stopping = False
         self.resuming = False
         self.resuming_point = 0
-        self.current_twist = TwistStamped()
-        self.last_closest_waypoint = 0
+        self.last_closest_wp = 0
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-        rospy.Subscriber('/current_velocity', TwistStamped, self.current_twist_cb)
         rospy.Subscriber('traffic_waypoint', Int32, self.traffic_cb)
 
         rospy.spin()
@@ -82,83 +78,55 @@ class WaypointUpdater(object):
         max_distance = float('inf')
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
 
-        for i in range(self.last_closest_waypoint, self.last_closest_waypoint + LOOKAHEAD_WPS):# len(self.all_wps.waypoints)):
+        for i in range(self.last_closest_wp, self.last_closest_wp + LOOKAHEAD_WPS):
             current_distance = dl(pos, self.all_wps.waypoints[i % num_waypoints].pose.pose.position)
             if current_distance < max_distance:
                 closest_point = i % num_waypoints
                 max_distance = current_distance
 
-        self.last_closest_waypoint = closest_point
+        self.last_closest_wp = closest_point
         return closest_point
 
     def waypoints_cb(self, waypoints):
         rospy.loginfo("Waypoints received")
-        if (not self.wp_received):
-            self.original_wps = waypoints
-
         self.wp_received = True
         self.all_wps = waypoints
-
-    def current_twist_cb(self, msg):
-        rospy.loginfo("Current twist received")
-        self.current_twist = msg
 
     def traffic_cb(self, msg):
         if self.wp_received:
             light_wp = msg.data
             num_waypoints = len(self.all_wps.waypoints)
 
-            rospy.loginfo("Current waypoint %s. traffic waypoints %s", self.wp_current_start, msg.data)
-
-            current_speed = self.get_waypoint_velocity(self.all_wps.waypoints[self.wp_current_start])
-
-            dist_to_light = 100.0
-
-            if light_wp >= 0 and current_speed > 0:
-                dist_to_light = self.distance(self.all_wps.waypoints, self.wp_current_start, light_wp) - self.light_wp_offset
-                rospy.logwarn('Braking distance to light: {}'.format(dist_to_light))
+            if light_wp >= 0:
+                rospy.loginfo("Current waypoint %s. Traffic waypoint %s, Stop line waypoint %s",
+                    self.wp_current_start, light_wp, light_wp - self.light_wp_offset)
 
             # at the first moment detecting a red light close by
-            extra_brake_wps = 50
+            extra_brake_wps = 25
             if light_wp >= 0 and not self.stopping:
-                # rospy.loginfo("Traffic waypoints received %s", msg.data)
-                # rospy.loginfo("Target velocity is %s", self.all_wps.waypoints[msg.data].twist.twist.linear.x)
-                # rospy.loginfo("Red light ahead, set velocity to stop")
+                rospy.loginfo("Red light ahead, begin stop")
 
-                wps_to_light = light_wp - self.wp_current_start
-                for i in range(wps_to_light):
-                    delta = self.distance(self.all_wps.waypoints, self.wp_current_start, self.wp_current_start + i)
-                    if dist_to_light > 0:
-                        new_speed = -1*(current_speed/dist_to_light) * delta + current_speed
-                        self.set_waypoint_velocity(self.all_wps.waypoints, (i + self.wp_current_start) % num_waypoints, new_speed)
-                    else:
-                        self.set_waypoint_velocity(self.all_wps.waypoints, (i + self.wp_current_start) % num_waypoints, -1.0)
+                current_speed = self.get_waypoint_velocity(self.all_wps.waypoints[self.wp_current_start])
+                target_speed = -1.0 # hold the break at a stop
+                target_wp = light_wp - self.light_wp_offset # Stop just behind the line
 
-                for j in range(wps_to_light-1, wps_to_light-1 + extra_brake_wps):
-                    rospy.loginfo("%s out of %s",num_waypoints,j % num_waypoints)
-                    self.set_waypoint_velocity(self.all_wps.waypoints, (j + self.wp_current_start) % num_waypoints, -1.0)
+                self.linearly_change_speed(current_speed, target_speed, target_wp)
+
+                for j in range(target_wp, target_wp + extra_brake_wps):
+                    self.set_waypoint_velocity(self.all_wps.waypoints, j % num_waypoints, target_speed)
 
                 self.stopping = True
 
             num_resume_wps = 30
             if light_wp < 0:
                 if (not self.resuming) and (self.stopping):
-                    rospy.logwarn("Green light now, resume velocity")
-                    rospy.logwarn("Target velocity is %s", self.speed_limit)
+                    rospy.loginfo("Green light now, target velocity is %s", self.speed_limit)
                     self.stopping = False
                     self.resuming = True
                     self.resuming_point = self.wp_current_start + num_resume_wps
 
-                    min_resume_speed = 3.0
-                    dist_to_resume = self.distance(self.all_wps.waypoints, self.wp_current_start, self.resuming_point)
-                    if dist_to_resume < 0.01:
-                        dist_to_resume = 0.01
-                    for i in range(num_resume_wps):
-                        delta = self.distance(self.all_wps.waypoints, self.wp_current_start, self.wp_current_start + i)
-                        new_speed = ((self.speed_limit - min_resume_speed)/dist_to_resume) * delta + min_resume_speed
-                        self.set_waypoint_velocity(self.all_wps.waypoints, (i + self.wp_current_start) % num_waypoints, new_speed)
+                    self.linearly_change_speed(3.0, self.speed_limit, self.resuming_point)
 
-                    self.all_wps = self.original_wps
                     for j in range(num_resume_wps - 1 , num_waypoints - num_resume_wps - 1):
                         self.set_waypoint_velocity(self.all_wps.waypoints, (j+self.wp_current_start) % num_waypoints, self.speed_limit)
 
@@ -169,6 +137,19 @@ class WaypointUpdater(object):
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
+
+    # Apply y = m*x + b. Given initial speed, target speed, current_wp, target_wp
+    def linearly_change_speed(self, current_speed, target_speed, target_wp):
+        num_waypoints = len(self.all_wps.waypoints)
+        target_distance = max(self.distance(self.all_wps.waypoints, self.wp_current_start, target_wp), 0.01)
+        wps_to_target = target_wp - self.wp_current_start
+        slope = (target_speed - current_speed) / target_distance
+
+        for i in range(wps_to_target):
+            delta = self.distance(self.all_wps.waypoints, self.wp_current_start, self.wp_current_start + i)
+            next_speed = slope * delta + current_speed
+            next_wp = (self.wp_current_start + i) % num_waypoints
+            self.set_waypoint_velocity(self.all_wps.waypoints, next_wp, next_speed)
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
