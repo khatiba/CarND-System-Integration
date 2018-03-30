@@ -3,6 +3,7 @@
 This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
 
 
+
 ### Team: Experienced Drivers
 
 | Name                    | Email                       |
@@ -12,6 +13,7 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 | William Wu              | willywu2001@hotmail.com     |
 | Haribalan Raghupathy    | haribalan.r@gmail.com       |
 | Ilkka Huopaniemi        | ilkka.huopaniemi@gmail.com  |
+
 
 
 ### Implementation details
@@ -32,7 +34,9 @@ They are:
 I will describe how we implement each of these node below.
 
 
+
 #### Waypoint updater
+
 We update only the [waypoint_updater.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/waypoint_updater/waypoint_updater.py)
 
 Waypoint updater node will publish waypoints from the from the car's current position to some waypoints ahead.
@@ -67,8 +71,10 @@ For **resuming** we gradually bring the car back to the pre-configured target ve
 Some flags like `self.stopping` and `self.resuming` are present to carry the current state of the car.
 
 
+
 #### DBW (Drive-By-Wire)
-We update [dbw_node.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/twist_controller/dbw_node.py) and [twist_controller](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/twist_controller/twist_controller.py).
+
+We update [dbw_node.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/twist_controller/dbw_node.py) and [twist_controller.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/twist_controller/twist_controller.py).
 
 ###### dbw_node.py
 DBW node took in target twist command and publish the driving command: throttle, brake and steer.
@@ -94,7 +100,9 @@ We reset the `throttle_controller` when acceleration is not positive.
 If acceleration is negative, we calculate brake based on vehicle status specified by input controller.
 
 
+
 #### Traffic Light Detection
+
 We updated [tl_detector.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/tl_detector.py) and added [cv_method.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/cv_method.py)
 
 ###### tl_detector.py
@@ -143,8 +151,8 @@ There are some problems.
      HoughCirlces are circles detection but we need the circle to be filled for red light detection. This leads to a lot of false positive as well.
      **Solution:** After HoughCircles returns a list of circles, I applied a cv2.countNonZero to see how filled it is, if it is below certain value, it is not counted as a detected light. Notice in the image below, only the green circle is the circle that is filled and counted as a red light.
 
-     | Original                                 | Detected                                 |
-     | ---------------------------------------- | ---------------------------------------- |
+     |                 Original                 |                 Detected                 |
+     | :--------------------------------------: | :--------------------------------------: |
      | ![img_original_10077](./imgs/img_original_10235.png) | ![img_final_10077](./imgs/img_final_10235.png) |
 
 
@@ -152,12 +160,12 @@ There are some problems.
 3. Also in ROSBAG, the environment, due to the sunlight, has a lot of bright red spot that has exactly same color as the traffic light. This creates a lot of false positives.
      **Solution:** STATE_CHANGE_THRESHOLD is increased to 5 so that we can allow more false positives. Also I increase minimum distance between two circles in HoughCircles function so that false positives that clustered together can be eliminated. Notice below some false positive even after the filled ratio threshold will still be unavoidable.
 
-     |                 Original                 |              Detected 10077              |
+     |                 Original                 |                 Detected                 |
      | :--------------------------------------: | :--------------------------------------: |
      | ![img_original_10077](./imgs/img_original_10077.png) | ![img_final_10077](./imgs/img_final_10077.png) |
 
 4. Another problem we have seen is in simulator, it the traffic light changes to red right before we pass stop line, we might not be able to stop the car on time. 
-    ** Solution:** I have deliberately increase the threshold to detect yellow color as well. So the car can be made aware it is going to be RED soon and slow down in advance.
+    **Solution:** I have deliberately increase the threshold to detect yellow color as well. So the car can be made aware it is going to be RED soon and slow down in advance.
     As a result: in our project loginfo, we will output only two scenarios when we publish upcoming red light after state_count_thresholding. They are:
     [RED or YELLOW]
     vs
@@ -165,12 +173,19 @@ There are some problems.
     As shown in the image below.
     ![state_grouping](./imgs/state_grouping.png)
 
+
+
 #### Summary
+
 With the above implementation details, we have successfully run the our algorithm in both simulator and ROSBAG files.
 After state_count_thresholding there should be no unnessary stopping of the vehicle.
 
 The cv_method might not be very robust if the lighting condition changes when running on Carla.
 Due to the limitation of hardware, this is the best of what we have here.
+
+
+
+
 
 
 ### Instructions
