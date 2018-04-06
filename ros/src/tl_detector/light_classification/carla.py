@@ -104,9 +104,9 @@ class CarlaModel(object):
 
 
         if traffic_light is not None:
-            cv2.imwrite("imgs/light_"+str(self.image_no)+".png",traffic_light)
-            cv2.imwrite("imgs/full_"+str(self.image_no)+".png", img)
-            cv2.imwrite("imgs/grid_"+str(self.image_no)+".png",grid)
+            #cv2.imwrite("imgs/light_"+str(self.image_no)+".png",traffic_light)
+            #cv2.imwrite("imgs/full_"+str(self.image_no)+".png", img)
+            #cv2.imwrite("imgs/grid_"+str(self.image_no)+".png",grid)
             """
             For each traffic light box detected
             we converted it to HSV and only look at brightness (V channel)
