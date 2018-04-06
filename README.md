@@ -105,6 +105,11 @@ If acceleration is negative, we calculate brake based on vehicle status specifie
 
 We updated [tl_detector.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/tl_detector.py) and added [cv_method.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/cv_method.py)
 
+Resubmission notes:
+ [cv_method.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/cv_method.py) did not work for Carla driving. Reason being the filtering if too dependent on the lighting condition and would change a lot due to weather.
+We have not switched back to our original NN method.
+This will be described in later section and code in [carla.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/carla.py)
+
 ###### tl_detector.py
 This is the main class of Traffic light detection node.
 Traffic Light detection node subscribe to:
@@ -172,6 +177,56 @@ There are some problems.
     [GREEN or UNKNOWN]
     As shown in the image below.
     ![state_grouping](./imgs/state_grouping.png)
+
+###### carla.py
+Due to hardware constraints on our end, we did not use NN earlier. As CV method is proven to be not working perfectly, we switched back to NN method.
+We have been re-using a pre-trained model from [tensorflow detection model zoo](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md).
+We picked [ssd_mobilenet_v1_coco](http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v1_coco_2017_11_17.tar.gz) since it is the fastest.
+
+This model is trained w.r.t. COCO dataset where there traffic_light is a class. So by passing an image into the network, boxes are returned to indicate object detected and type of the object.
+It is a SSD on a mobilenet structure.
+
+Inputs are 300x300 for the network.
+So we provided 6 regions of interest with size 300x300, assuming our images are 600x800.
+![grids_overlay](./imgs/grids_overlay_10273.png)
+
+We loop over the 6 ROI and feed it into the NN.
+If a traffic light is detected, we will stop searching for this frame to save time.
+
+| Original                           | Grid                           | Light                            |
+| ---------------------------------- | ------------------------------ | -------------------------------- |
+| ![original](./imgs/full_10153.png) | ![grid](./imgs/grid_10153.png) | ![light](./imgs/light_10153.png) |
+
+Once a traffic light has been boxed. We will convert the cropped image to HSV like the cv_method.
+
+Looking at the V value, we filter the very bright pixels and get an average height of it.
+
+We also filter out the very dark pixels and get an average height of it.
+
+If light is on top and darkness is at bottom, then it is a red light.
+
+```python
+        brightness = cv2.cvtColor(traffic_light, cv2.COLOR_BGR2HSV)[:,:,-1]
+        light_h,light_w = np.where(brightness >= (brightness.max() - 5))
+        light_h_mean = light_h.mean()
+        dark_h,dark_w = np.where(brightness <= (brightness.max() - 50))
+        dark_h_mean = dark_h.mean()
+        total_h = traffic_light.shape[0]
+        combined_h = (light_h_mean + (total_h - dark_h_mean))/2
+        light_ratio = combined_h / total_h
+        if light_ratio < 0.53: # A larger value to include most of YELLOW as RED
+            return TrafficLight.RED
+        elif light_ratio > 0.60:
+            return TrafficLight.GREEN
+        else:
+            return TrafficLight.YELLOW
+
+```
+Vice versa for green light.
+
+So this method is color-blind friendly as it assumes the traffic light setup is vertical and always RED on top.
+
+For same reason stated in cv_method, I try to treat YELLOW as RED to be cautious so we slow down at yellow light.
 
 
 

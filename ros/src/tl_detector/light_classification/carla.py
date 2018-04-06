@@ -6,9 +6,6 @@ from styx_msgs.msg import TrafficLight
 import cv2
 import rospy
 
-
-import tensorflow as tf
-
 class CarlaModel(object):
     def __init__(self, model_path):
         """
