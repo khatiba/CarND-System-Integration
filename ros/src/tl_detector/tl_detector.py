@@ -12,7 +12,7 @@ import cv2
 import yaml
 import math
 
-STATE_COUNT_THRESHOLD = 5
+STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
@@ -25,7 +25,15 @@ class TLDetector(object):
 
         self.stop_line_array = []           
         self.light_array = []
-
+        
+        self.state = TrafficLight.UNKNOWN
+        self.last_state = TrafficLight.UNKNOWN
+        self.last_wp = -1
+        self.state_count = 0
+        self.lights_received = False
+        self.pos_computed = False
+        self.waypoints_len= -1
+        self.previous_wp = -1
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -46,17 +54,10 @@ class TLDetector(object):
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier("cv_method")
+        self.light_classifier = TLClassifier("ssd_mobilenet_coco")
         self.listener = tf.TransformListener()
 
-        self.state = TrafficLight.UNKNOWN
-        self.last_state = TrafficLight.UNKNOWN
-        self.last_wp = -1
-        self.state_count = 0
-        self.lights_received = False
-        self.pos_computed = False
-        self.waypoints_len= -1
-        self.previous_wp = -1
+
 
         rospy.spin()
 
