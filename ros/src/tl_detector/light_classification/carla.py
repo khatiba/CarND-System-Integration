@@ -17,7 +17,7 @@ class CarlaModel(object):
         """
         self.sess = None
         self.path = model_path
-        self.likelihood = 0.15
+        self.likelihood = 0.20
         self.coco_traffic_light_type = 10
         self.image_no = 10000
         tf.reset_default_graph()
