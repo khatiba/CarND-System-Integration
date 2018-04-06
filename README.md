@@ -105,7 +105,7 @@ If acceleration is negative, we calculate brake based on vehicle status specifie
 
 We updated [tl_detector.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/tl_detector.py) and added [cv_method.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/cv_method.py)
 
-Resubmission notes:
+**Resubmission notes: **
  [cv_method.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/cv_method.py) did not work for Carla driving. Reason being the filtering if too dependent on the lighting condition and would change a lot due to weather.
 We have not switched back to our original NN method.
 This will be described in later section and code in [carla.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/carla.py)
@@ -136,7 +136,7 @@ We have working NN that is able to detect the light correctly, but by the time i
 This leads to our classical vision method using openCV functions.
 It is implemented in [cv_method.py](https://github.com/khatiba/CarND-System-Integration/blob/master/ros/src/tl_detector/light_classification/cv_method.py)
 
-###### cv_method.py
+###### ~~cv_method.py~~
 The idea behind our algorithm is to detect a red filled circle within an image.
 We use `cv2.HoughCircles` to achieve it, however there are more things to consider here.
 The source of this method is from this blogpost Reference: https://solarianprogrammer.com/2015/05/08/detect-red-circles-image-using-opencv/
@@ -178,7 +178,7 @@ There are some problems.
     As shown in the image below.
     ![state_grouping](./imgs/state_grouping.png)
 
-###### carla.py
+###### **carla.py**
 Due to hardware constraints on our end, we did not use NN earlier. As CV method is proven to be not working perfectly, we switched back to NN method.
 We have been re-using a pre-trained model from [tensorflow detection model zoo](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md).
 We picked [ssd_mobilenet_v1_coco](http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v1_coco_2017_11_17.tar.gz) since it is the fastest.
@@ -188,6 +188,7 @@ It is a SSD on a mobilenet structure.
 
 Inputs are 300x300 for the network.
 So we provided 6 regions of interest with size 300x300, assuming our images are 600x800.
+
 ![grids_overlay](./imgs/grids_overlay_10273.png)
 
 We loop over the 6 ROI and feed it into the NN.
