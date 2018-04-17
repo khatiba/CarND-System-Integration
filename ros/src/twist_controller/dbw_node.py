@@ -75,6 +75,7 @@ class DBWNode(object):
 
             if self.is_dbw_enabled:
                 throttle, brake, steering = self.controller.control(
+                    self.is_dbw_enabled,
                     self.target_twist.linear.x,
                     self.target_twist.angular.z,
                     self.current_twist.linear.x

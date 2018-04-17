@@ -17,7 +17,7 @@ class CarlaModel(object):
         """
         self.sess = None
         self.path = model_path
-        self.likelihood = 0.20
+        self.likelihood = 0.15
         self.coco_traffic_light_type = 10
         self.image_no = 10000
         tf.reset_default_graph()
@@ -124,7 +124,7 @@ class CarlaModel(object):
             combined_h = (light_h_mean + (total_h - dark_h_mean))/2
             light_ratio = combined_h / total_h
             #rospy.loginfo("for light image %s, light ratio is %s",self.image_no,light_ratio)
-            if light_ratio < 0.53: # A larger value to include most of YELLOW as RED
+            if light_ratio < 0.55: # A larger value to include most of YELLOW as RED
                 #rospy.loginfo("image"+str(self.image_no-1)+" is RED")
                 return TrafficLight.RED
             elif light_ratio > 0.60:

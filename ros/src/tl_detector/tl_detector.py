@@ -11,6 +11,7 @@ import tf
 import cv2
 import yaml
 import math
+import time
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -22,6 +23,7 @@ class TLDetector(object):
         self.waypoints = None
         self.camera_image = None
         self.lights = []
+        self.image_arrival = time.clock()
 
         self.stop_line_array = []           
         self.light_array = []
@@ -66,11 +68,11 @@ class TLDetector(object):
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints
-	self.waypoints_len = len(waypoints.waypoints)
+        self.waypoints_len = len(waypoints.waypoints)
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
-	self.lights_received = True
+        self.lights_received = True
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
@@ -80,9 +82,14 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
+        time_started = time.clock()
+        #rospy.loginfo("Image arrives after %s seconds", time_started - self.image_arrival)
+        self.image_arrival = time_started
         self.has_image = True
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
+        time_elapsed = time.clock() - time_started
+        #rospy.loginfo("Traffic light detection took %s seconds", time_elapsed)
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -188,6 +195,7 @@ class TLDetector(object):
             rospy.loginfo("pos computed")
 
         if self.pos_computed:
+            time_started = time.clock()
             car_position = self.previous_wp
             if(self.pose):
                 if (self.previous_wp == -1):
@@ -209,6 +217,8 @@ class TLDetector(object):
                     if (distance_to_light < 60):
                         light = self.lights[i_light]
                         light_wp = current_stop_line_position
+            time_elapsed = time.clock() - time_started
+            #rospy.loginfo("Before actual prediction, it took %s second",time_elapsed)
 
             if light:
                 state = self.get_light_state(light)
