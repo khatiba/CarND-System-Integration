@@ -2,7 +2,7 @@
 
 import rospy
 from std_msgs.msg import Bool
-from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
+from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport, ThrottleReport, BrakeReport
 from geometry_msgs.msg import TwistStamped
 import math
 
@@ -64,6 +64,13 @@ class DBWNode(object):
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_twist_cb)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.target_twist_cb)
 
+        #rospy.Subscriber('/vehicle/steering_report', SteeringReport, self.steer_cb)
+        #rospy.Subscriber('/vehicle/throttle_report', ThrottleReport, self.throttle_cb)
+        #rospy.Subscriber('/vehicle/brake_report', BrakeReport, self.brake_cb)
+        #rospy.Subscriber('/vehicle/steering_cmd', SteeringCmd, self.steer_cb)
+        #rospy.Subscriber('/vehicle/throttle_cmd', ThrottleCmd, self.throttle_cb)
+        #rospy.Subscriber('/vehicle/brake_cmd', BrakeCmd, self.brake_cb)
+
         self.loop()
 
     def loop(self):
@@ -96,6 +103,16 @@ class DBWNode(object):
         self.is_dbw_enabled = msg.data
         rospy.loginfo("dbw_enabled received with value %s", self.is_dbw_enabled)
 
+    #def steer_cb(self,msg):
+    #    rospy.logwarn("ROSBAG steer is %s", msg.steering_wheel_angle_cmd)
+
+    #def throttle_cb(self,msg):
+    #    rospy.logwarn("ROSBAG throttle is %s", msg.pedal_cmd)
+
+    #def brake_cb(self,msg):
+    #    rospy.logwarn("ROSBAG brake is %s", msg.pedal_cmd)
+
+
     def publish(self, throttle, brake, steer):
         tcmd = ThrottleCmd()
         tcmd.enable = True
@@ -113,6 +130,7 @@ class DBWNode(object):
         bcmd.pedal_cmd_type = BrakeCmd.CMD_TORQUE
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
+
 
 
 if __name__ == '__main__':

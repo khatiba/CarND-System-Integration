@@ -132,14 +132,14 @@ class Controller(object):
         elif throttle < .1 and vel_error < 0:
             throttle = 0
             decel = max(vel_error,self.decel_limit)
-            brake = abs(decel) * (self.vehicle_mass + self.fuel_capacity * GAS_DENSITY) * self.wheel_radius
+            brake = abs(decel) * (self.vehicle_mass + self.fuel_capacity * GAS_DENSITY) * self.wheel_radius * 2
         
-       # rospy.logwarn("throttle is %s", throttle)
-       # rospy.logwarn("brake is %s", brake)
-       # rospy.logwarn("steer is %s", steer)
-       # rospy.logwarn("current_vel is %s", current_velocity)
-       # rospy.logwarn("target_linear is %s", target_linear_velocity)
-       # rospy.logwarn("target_angular is %s", target_angular_velocity)
+        #rospy.logwarn("throttle is %s", throttle)
+        #rospy.logwarn("brake is %s", brake)
+        #rospy.logwarn("steer is %s", steer)
+        #rospy.logwarn("current_vel is %s", current_velocity)
+        #rospy.logwarn("target_linear is %s", target_linear_velocity)
+        #rospy.logwarn("target_angular is %s", target_angular_velocity)
 
         return throttle, brake, steer
 
